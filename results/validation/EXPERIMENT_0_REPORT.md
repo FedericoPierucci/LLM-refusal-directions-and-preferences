@@ -93,22 +93,56 @@ PyTorch 2.0, Transformers 4.35, NumPy, SciPy, Matplotlib | Hardware: Colab T4 GP
 
 **Figure 2.** Distribution of individual prompt projections at layer 18. Harmful prompts (red) span continuously from 14→44, not clustering at single value. Some harmful prompts project into harmless territory (14-20 range), suggesting genuine ambiguity or mislabeling.
 
-**Variance Across All Layers:**
+![Progressive Distributions](progressive_distributions.png)
+
+**Figure 3.** Projection distributions across 8 key layers showing progressive build-up. Layer 0: high overlap (5 samples). Layer 9: overlap drops to zero (categorical decision). Layer 18: peak discrimination with substantial variance. Layer 27: maintained separation with increased variance.
+
+---
+
+### 3.3 Complete Variance Analysis: All Layers
 
 | Layer | Harmful Std | Harmless Std | Separation | Overlap Count |
 |-------|-------------|--------------|------------|---------------|
 | 0 | 0.18 | 0.28 | 0.64 | 5 |
+| 1 | 0.16 | 0.46 | 1.44 | 1 |
+| 2 | 0.36 | 0.65 | 1.97 | 3 |
+| 3 | 0.52 | 1.14 | 3.57 | 1 |
+| 4 | 0.64 | 1.36 | 3.93 | 2 |
 | 5 | 0.83 | 1.60 | 4.00 | 3 |
+| 6 | 0.64 | 1.46 | 3.76 | 3 |
+| 7 | 0.66 | 1.44 | 4.20 | 2 |
+| 8 | 0.72 | 1.40 | 4.51 | 1 |
 | 9 | 0.87 | 1.48 | 5.16 | 0 |
+| 10 | 1.02 | 1.70 | 6.30 | 0 |
+| 11 | 1.03 | 1.72 | 6.20 | 0 |
+| 12 | 1.10 | 1.83 | 6.52 | 0 |
+| 13 | 2.07 | 2.09 | 10.66 | 0 |
+| 14 | 2.37 | 2.22 | 11.85 | 0 |
 | 15 | 2.84 | 1.82 | 15.72 | 0 |
-| 18 | 4.24 | 3.47 | 35.06 | 0 |
+| 16 | 3.79 | 2.26 | 23.05 | 0 |
+| 17 | 3.74 | 2.34 | 27.31 | 0 |
+| 18 | 4.24 | 3.46 | 35.06 | 0 |
+| 19 | 4.90 | 4.83 | 39.94 | 0 |
+| 20 | 4.94 | 5.09 | 42.00 | 0 |
+| 21 | 5.92 | 7.20 | 53.81 | 0 |
+| 22 | 7.48 | 9.87 | 67.94 | 0 |
+| 23 | 8.48 | 10.75 | 74.81 | 0 |
+| 24 | 9.45 | 11.85 | 84.12 | 0 |
 | 25 | 10.22 | 12.77 | 93.00 | 0 |
+| 26 | 11.02 | 13.41 | 99.75 | 0 |
+| 27 | 9.20 | 10.95 | 79.19 | 0 |
 
-**Critical Finding:** Overlap disappears at **layer 9**, indicating this is where categorical decision crystallizes, not layer 18.
+
+**Key Observations:**
+- **Overlap elimination:** Last overlap at layer 8 (1 sample), zero from layer 9 onwards
+- **Variance growth:** Harmful std grows from 0.18 (layer 0) to 11.02 (layer 26)
+- **Separation acceleration:** Separation grows exponentially from 0.64 to 99.75, then drops to 79.2 at layer 27
+- **Critical transition:** Layer 9 marks categorical decision (first zero overlap)
+- **Peak layers:** Layers 18-21 show optimal separation/variance ratio (4-5×)
 
 ---
 
-### 3.3 Progressive Build-Up Pattern
+### 3.4 Progressive Build-Up Pattern
 
 **Early layers (0-8):**
 - Weak separation (d = 2.8-4.5)
@@ -233,10 +267,11 @@ These validated directions and variance patterns provide foundation for testing 
 ## Files Generated
 
 **Validation:**
-- `direction_analysis.png` - Separation metrics across layers
-- `projection_distributions.png` - Layer 18 individual prompt distributions
+- `direction_analysis.png` - Separation metrics across layers (Figure 1)
+- `projection_distributions.png` - Layer 18 individual distributions (Figure 2)
+- `progressive_distributions.png` - 8 key layers comparison (Figure 3)
 - `validation_results.csv` - Statistical validation for all layers
-- `variance_by_layer.csv` - Within-category variance analysis
+- `variance_by_layer.csv` - Within-category variance analysis (complete table)
 - `layer_distributions/` - Individual histograms for all 28 layers
 - `top10_layers.csv` - Top performers by effect size
 - `summary.json` - Numerical summary
