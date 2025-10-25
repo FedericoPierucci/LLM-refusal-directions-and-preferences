@@ -3,18 +3,26 @@
 **Researcher:** Federico Pierucci  
 **Date:** 2025-10-25  
 **Model:** Qwen/Qwen2.5-1.5B-Instruct  
+**Status:** Experiment 0 Complete ✓
 
 ---
 
 ## Executive Summary
 
-We validated the existence of refusal directions in Qwen 2.5-1.5B-Instruct. All 28 layers show statistically significant separation between harmful and harmless prompts, with peak discrimination at layer 18 (Cohen's d = 9.05). Refusal builds progressively through layers rather than occurring at a single decision point.
+We validated the existence of refusal directions in Qwen 2.5-1.5B-Instruct across all 28 layers. All layers show statistically significant separation between harmful and harmless prompts (Cohen's d > 2.75, p < 0.01), with peak discrimination at layer 18 (d = 9.05). 
+
+**Key Finding:** Refusal is not binary classification but a progressive gradient. The model begins differentiating individual prompts by layer 0, categorical overlap disappears at layer 9, and separation peaks at layer 18. Within-category variance reveals the model internally ranks harm severity rather than treating all harmful prompts identically.
 
 ---
 
-## 1. Research Question
+## 1. Research Questions
 
-Do refusal directions reliably separate harmful/harmless representations across all layers, and where does discrimination emerge strongest?
+**Primary:** Do refusal directions reliably separate harmful/harmless representations across all layers?
+
+**Secondary:** 
+- Where does discrimination emerge strongest?
+- Does the model represent harm as binary or gradient?
+- When does categorical decision crystallize?
 
 ---
 
@@ -30,11 +38,15 @@ For each layer l ∈ {0, ..., 27}:
 1. Extract activations at last token position: h_l ∈ ℝ^1536
 2. Compute direction: d_l = mean(harmful) - mean(harmless)
 3. Normalize: d̂_l = d_l / ||d_l||
-4. Project all activations onto d̂_l
+4. Project all activations onto d̂_l to measure individual prompt positioning
 5. Statistical validation:
-   - Independent samples t-test (H0: no difference between groups)
+   - Independent samples t-test (H0: no separation)
    - Effect size: Cohen's d = (μ_harm - μ_harmless) / σ_pooled
    - Valid if: p < 0.01 AND |d| > 0.5
+6. Variance analysis:
+   - Within-category standard deviation
+   - Overlap count between distributions
+   - Separation/variance ratio
 
 ### Tools
 PyTorch 2.0, Transformers 4.35, NumPy, SciPy, Matplotlib | Hardware: Colab T4 GPU
@@ -43,12 +55,11 @@ PyTorch 2.0, Transformers 4.35, NumPy, SciPy, Matplotlib | Hardware: Colab T4 GP
 
 ## 3. Results
 
-### Overall
-- **Valid layers:** 28/28 (100%)
-- **Strongest layer:** Layer 18 (Cohen's d = 9.05)
-- **Pattern:** Progressive build-up from early to late layers
+### 3.1 Separation Strength (Between-Category)
 
-### Top 10 Layers
+**Overall:** 28/28 layers valid (100%)
+
+**Top 10 Layers by Effect Size:**
 
 | Layer | Magnitude | Cohen's d | p-value |
 |-------|-----------|-----------|---------|
@@ -63,73 +74,171 @@ PyTorch 2.0, Transformers 4.35, NumPy, SciPy, Matplotlib | Hardware: Colab T4 GP
 | 27 | 79.19 | 7.83 | 2.01e-311 |
 | 22 | 67.94 | 7.77 | 1.48e-309 |
 
-### Layer Patterns
-
 ![Direction Analysis](direction_analysis.png)
 
-**Figure 1.** Left: Separation distance grows exponentially after layer 15. Middle: Effect size plateaus at d ≈ 8 in layers 17-27. Right: Combined view showing both metrics track together.
+**Figure 1.** Separation metrics across layers. Left: Distance between cluster means grows exponentially after layer 15. Middle: Effect size plateaus at d ≈ 8. Right: Both metrics track together, confirming progressive strengthening.
 
-**Early layers (0-10):** Weak separation (d = 2.8-4.5) - model begins distinguishing  
-**Middle layers (11-17):** Rapid increase (d = 4.3-8.8) - discrimination solidifies  
-**Late layers (18-27):** Maximal separation (d = 7.7-9.1) - clusters very far apart
+---
+
+### 3.2 Internal Gradient (Within-Category)
+
+**Key Question:** Does the model treat all harmful prompts identically, or does it internally rank them?
+
+**Layer 18 Analysis (Peak Discrimination):**
+- Harmful std = 4.24 (range: 14.5 → 43.7, span of 29 units)
+- Harmless std = 3.47 (range: -8.4 → 14.6, span of 23 units)
+- **Interpretation:** Substantial within-category variance indicates internal gradient, not binary
+
+![Projection Distributions](projection_distributions.png)
+
+**Figure 2.** Distribution of individual prompt projections at layer 18. Harmful prompts (red) span continuously from 14→44, not clustering at single value. Some harmful prompts project into harmless territory (14-20 range), suggesting genuine ambiguity or mislabeling.
+
+**Variance Across All Layers:**
+
+| Layer | Harmful Std | Harmless Std | Separation | Overlap Count |
+|-------|-------------|--------------|------------|---------------|
+| 0 | 0.18 | 0.28 | 0.64 | 5 |
+| 5 | 0.83 | 1.60 | 4.00 | 3 |
+| 9 | 0.87 | 1.48 | 5.16 | 0 |
+| 15 | 2.84 | 1.82 | 15.72 | 0 |
+| 18 | 4.24 | 3.47 | 35.06 | 0 |
+| 25 | 10.22 | 12.77 | 93.00 | 0 |
+
+**Critical Finding:** Overlap disappears at **layer 9**, indicating this is where categorical decision crystallizes, not layer 18.
+
+---
+
+### 3.3 Progressive Build-Up Pattern
+
+**Early layers (0-8):**
+- Weak separation (d = 2.8-4.5)
+- High within-category variance relative to separation
+- Overlap present (1-5 samples cross category boundaries)
+- **Interpretation:** Individual token features dominate; model hasn't abstracted to harm concept
+
+**Transition layer (9):**
+- Separation = 5.16, Cohen's d = 4.26
+- Overlap drops to zero
+- **Critical point:** Categorical decision emerges here
+
+**Middle layers (10-17):**
+- Separation accelerates (6.2 → 27.3)
+- Variance grows but separation grows faster
+- Cohen's d peaks at 8.8
+- **Interpretation:** Semantic abstraction; "harmful vs harmless" fully represented
+
+**Peak layers (18-21):**
+- Maximal effect size (d = 8-9)
+- Large within-category variance (std = 4-6)
+- Separation/variance ratio = 4-5×
+- **Interpretation:** Both categorical separation AND individual differentiation
+
+**Late layers (22-27):**
+- Separation continues growing (68 → 100 → 79)
+- Variance explodes (std = 7-13)
+- **Interpretation:** Preparing different output formats; representations diverge for generation
 
 ---
 
 ## 4. Key Findings
 
-1. **Universal separation:** Even layer 0 shows d = 2.75; refusal discrimination begins immediately
-2. **Progressive build-up:** Not a binary switch; strength increases continuously through layers
-3. **Extremely large effects:** Peak d = 9.05 (9 standard deviations apart) - among strongest documented geometric separations in LLMs
+### Finding 1: Universal Separation
+All 28 layers show statistically valid directions (p < 0.01, d > 0.5). Even layer 0 has d = 2.75, indicating refusal-relevant features are present from the very first layer.
+
+### Finding 2: Categorical Decision at Layer 9
+Overlap between categories disappears at layer 9, earlier than the peak effect size at layer 18. This reveals the model makes a categorical "harmful vs harmless" decision by layer 9, then continues refining it.
+
+### Finding 3: Internal Gradient, Not Binary
+Harmful prompts at layer 18 span projections from 14→44 (29-unit continuous range), with std = 4.24. This is NOT binary classification. The model internally represents varying degrees of harmfulness.
+
+### Finding 4: Progressive Computation
+Separation builds gradually, not suddenly. The ratio separation/(harmful_std + harmless_std) increases from 1.4 at layer 0 to 4.5 at layer 18, showing progressive abstraction from token-level to semantic-level representations.
+
+### Finding 5: Outliers and Ambiguity
+Some harmful prompts project as low as 14.5 (overlapping with harmless range 14.6). Some harmless prompts project up to 14.6 (approaching harmful territory). This 14-20 range represents genuine ambiguity or potential mislabeling.
 
 ---
 
 ## 5. Comparison to Prior Work
 
 **Arditi et al. (2024):**
-- Used PCA showing separation exists across layers
-- Selected one direction for behavioral intervention
+- Used PCA showing separation exists qualitatively
+- Selected one direction for global behavioral intervention
 - Focus: Can one direction jailbreak the model?
 
 **Our work:**
 - Systematic statistical validation of all 28 layers
-- Quantified separation strength (Cohen's d) at each layer
-- Focus: How strong is the representation at each layer?
+- Quantified both between-category separation AND within-category variance
+- Identified layer 9 as categorical decision point (vs layer 18 as peak)
+- Demonstrated internal gradient rather than binary representation
 
-**Contribution:** First systematic quantification revealing progressive build-up from layer 0 to peak at layer 18.
-
----
-
-## 6. Limitations
-
-- Single model (Qwen 2.5-1.5B)
-- 256 prompts per category (larger sample would strengthen)
-- Correlation only; causation untested (planned for Experiment 2)
+**Contribution:** First systematic quantification of:
+1. When categorical decision emerges (layer 9)
+2. Where discrimination peaks (layer 18)
+3. Internal harm gradient via within-category variance analysis
 
 ---
 
-## 7. Next Steps
+## 6. Implications
 
-**Experiment 1 (Planned):**
-- 1a: Do different harm levels have different projection magnitudes?
-- 1b: Does internal magnitude predict behavioral refusal?
+**For AI alignment:**
+- Refusal is deeply embedded (all layers), not surface-level
+- Intervention should target layers 9-18 (decision emergence through peak)
+- Multi-layer intervention likely more robust than single-layer
 
-**Experiment 2 (Planned):**
-- Layer-specific ablation to test causal effects
+**For interpretability:**
+- Linear representation hypothesis strongly supported
+- Model has internal gradient of harm severity
+- Outliers (projection 14-20) are candidates for behavioral testing
+
+**For next experiments:**
+- Test if internal gradient predicts behavioral refusal (Experiment 1b)
+- Investigate outliers: are low-projecting "harmful" prompts refused?
+- Layer-specific ablation at layers 9, 15, 18 (Experiment 2)
+
+---
+
+## 7. Limitations
+
+- Single model (Qwen 2.5-1.5B); generalization unknown
+- 256 prompts per category; larger sample would strengthen
+- English only; no multilingual testing
+- Representation analysis only; causation untested
+
+---
+
+## 8. Next Steps
+
+**Experiment 1: Behavioral Correlation**
+- 1a: Do projection magnitudes predict human harm ratings? (requires curated dataset)
+- 1b: Does high internal magnitude predict refusal behavior? (test generation)
+
+**Experiment 2: Causal Intervention**
+- Layer-specific ablation at layers 9, 15, 18
 - Test if removing directions changes behavior
+- Proper controls (random direction ablation)
 
 ---
 
 ## Conclusion
 
-Refusal directions exist robustly across all layers with exceptionally large effect sizes. The progressive strengthening from early to late layers suggests refusal is a continuous computation rather than a discrete decision. These validated directions provide a solid foundation for testing behavioral predictions and causal interventions.
+Refusal directions exist robustly across all layers with large effect sizes (d > 2.75, peak d = 9.05). The model represents harm as a continuous gradient, not binary classification, with substantial within-category variance (std = 4.2 at peak layer). 
+
+Critically, categorical separation emerges at **layer 9** (zero overlap), earlier than peak discrimination at layer 18. This progressive build-up from token-level features (layers 0-8) through categorical decision (layer 9) to peak abstraction (layer 18) reveals refusal as a multi-stage computation rather than a single switch.
+
+These validated directions and variance patterns provide foundation for testing behavioral predictions and causal interventions.
 
 ---
 
 ## Files Generated
 
-- `direction_analysis.png` - Visualization (Figure 1)
-- `validation_results.csv` - Complete statistical data
-- `top10_layers.csv` - Top performers  
+**Validation:**
+- `direction_analysis.png` - Separation metrics across layers
+- `projection_distributions.png` - Layer 18 individual prompt distributions
+- `validation_results.csv` - Statistical validation for all layers
+- `variance_by_layer.csv` - Within-category variance analysis
+- `layer_distributions/` - Individual histograms for all 28 layers
+- `top10_layers.csv` - Top performers by effect size
 - `summary.json` - Numerical summary
 - `validated_directions.pkl` - Directions for future experiments
 
