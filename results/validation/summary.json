@@ -1,0 +1,12 @@
+{
+  "date": "2025-10-25T21:54:44.766865",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "n_layers": 28,
+  "n_harmful_prompts": 256,
+  "n_harmless_prompts": 256,
+  "valid_layers": 28,
+  "strongest_layer": 18,
+  "max_cohens_d": 9.0546875,
+  "max_magnitude_layer": 26,
+  "max_magnitude": 99.75
+}

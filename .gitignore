@@ -9,20 +9,21 @@ venv/
 
 # Jupyter
 .ipynb_checkpoints
-*.ipynb_checkpoints
 
-# Data and results (too large for git)
+# Data files (large, don't commit)
 data/datasets/
-data/directions/*.npy
-results/
-*.pt
-*.pth
-*.safetensors
+data/directions/
+data/test_sets/
+*.pkl
+*.npy
 
-# Model caches
+# Model caches (large)
 .cache/
 models/
 .transformers_cache/
+*.pt
+*.pth
+*.safetensors
 
 # Environment
 .env
